@@ -1,0 +1,70 @@
+#!/usr/bin/env node
+import process from "process";
+import * as esbuild from "esbuild";
+
+const watch = process.argv.includes("--watch");
+const minify = process.argv.includes("--minify");
+const disableSourcemap = process.argv.includes("--sourcemap=no");
+const genSourcemap = disableSourcemap ? null : { sourcemap: "inline" };
+const debugBuild = process.argv.includes("--debug");
+const serveFlag = process.argv.includes("--serve"); 
+
+// Setting to `copy` means we bundle the fonts in dist. Setting this to `dataurl` includes the fonts as base64 encoded data in the generated css file.
+const fontLoader = "base64";
+const sharedConfig = {
+  entryPoints: ["src/index.ts"],
+  outfile: "out/index.js",
+  bundle: true,
+  format: "cjs",
+  ...genSourcemap,
+  platform: "browser",
+  loader: {
+    ".woff": fontLoader,
+    ".woff2": fontLoader,
+    ".ttf": fontLoader,
+    ".grammar": "file",
+    ".md": "text"
+  },
+  dropLabels: debugBuild ? [] : ["DEBUG"],
+  minify,
+  alias: {
+    '@codemirror/autocomplete': './node_modules/@codemirror/autocomplete',
+    '@codemirror/commands': './node_modules/@codemirror/commands',
+    '@codemirror/language': './node_modules/@codemirror/language',
+    '@codemirror/lint': './node_modules/@codemirror/lint',
+    '@codemirror/state': './node_modules/@codemirror/state',
+    '@codemirror/view': './node_modules/@codemirror/view',
+  },
+  plugins: [
+    {
+      name: "log build status",
+      setup(build) {
+        build.onEnd(result => {
+          const errCount = result.errors.length;
+          if (errCount > 0) {
+            console.error(`❌ Build failed with ${errCount} error${errCount > 1 ? "s" : ""}`);
+          } else {
+            console.log("✅ Build finished");
+          }
+        });
+      }
+    },
+  ]
+}
+
+if (watch) {
+  const ctx = await esbuild.context(sharedConfig);
+  console.log("Watching for file changes...");
+  ctx.watch();
+} else if (serveFlag) {
+  const ctx = await esbuild.context(sharedConfig);
+  const {port} = await ctx.serve({
+    servedir: "out",
+  });
+  console.log(`Listening on http://localhost:${port}`);
+  ctx.watch();
+} else {
+  // This builds, bundles and optionally minifies the editor package
+  await esbuild.build(sharedConfig);
+}
+

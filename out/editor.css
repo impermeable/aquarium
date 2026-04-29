@@ -1,0 +1,117 @@
+/* Custom styles for the waterproof editor */
+
+body {
+    margin: 0;
+    padding: 10px;
+    height: calc(100vh - 20px);
+    overflow: hidden;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+
+#toolbar {
+    padding: 10px;
+    background: #f0f0f0;
+    border-bottom: 1px solid #ccc;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+    flex-shrink: 0;
+}
+
+#container {
+    display: flex;
+    flex: 1;
+    min-height: 0; /* Ensures child overflow works properly */
+}
+
+#editor {
+    flex: 2;
+    min-width: 0;
+    overflow-y: auto;
+    height: 100%;
+    margin-right: 33.333%; /* Leave space for the fixed goals panel */
+}
+
+#goals-panel {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    position: fixed;
+    right: 10px; /* Account for body padding */
+    top: 10px;
+    width: calc(33.333% - 20px); /* Adjust for padding */
+    background-color: #f9f9f9;
+    border-left: 1px solid #ccc;
+    padding: 10px;
+    box-sizing: border-box;
+    font-family: 'Courier New', Courier, monospace;
+    display: flex;
+    flex-direction: column;
+}
+
+#goals-panel #title {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 5px;
+}
+
+/* Custom styles for goals panel */
+#goals-panel #goals {
+    border-bottom: 1px solid var(--vscode-panel-border);
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+    overflow-y: auto;
+}
+
+#goals-panel #messages {
+    border-bottom: 1px solid var(--vscode-panel-border);
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+}
+
+#goals-panel #help {
+    flex-shrink: 0;
+}
+
+#exercise-toolbar {
+    margin-top: auto;
+    border-top: 1px solid #ccc;
+    padding: 10px;
+}
+
+#exercise-toolbar span {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 5px;
+}
+
+#exercise-toolbar select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 4px;
+}
+
+/* Loading spinner */
+.lsp-spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid #f3f3f3; /* Light grey */
+    border-top: 5px solid #3498db; /* Blue */
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Progress bar styling */
+.progress-bar progress {
+    background-color: #88bdf2; /* Light blue background for unfilled progress */
+}

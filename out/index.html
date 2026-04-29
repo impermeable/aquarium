@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aquarium - Online Waterproof Playground</title>
+    <script src="index.js"></script>
+    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="editor.css">
+    <link rel="icon" type="image/png" href="favicon-32.png">
+</head>
+<body>
+    <div id="container">
+        <div id="editor"></div>
+        <div id="goals-panel">
+            <h2 id="title">Goals</h2>
+            <div id="goals"></div>
+            <div id="messages"></div>
+            <div id="help"><h3>Help:</h3><button id="help-button">Help</button><div id="help-container"></div></div>
+            
+            <div id="exercise-toolbar">
+                <span>Open A Different Exercise Sheet:</span>
+                <select id="exercise-dropdown">
+					<option value="">-- Select Sheet --</option>
+					<option disabled>──────────</option>
+					<option value="https://raw.githubusercontent.com/impermeable/waterproof-exercise-sheets/main/waterproof_tutorial.mv">Waterproof Exercise Sheets - Waterproof Tutorial</option>
+					<option value="https://raw.githubusercontent.com/impermeable/waterproof-exercise-sheets/main/ch2_proofs_in_analysis.mv">Waterproof Exercise Sheets - Chapter 2: Proofs In Analysis</option>
+					<option value="https://raw.githubusercontent.com/impermeable/waterproof-exercise-sheets/main/ch3_metric_spaces.mv">Waterproof Exercise Sheets - Chapter 3: Metric Spaces</option>
+					<option value="https://raw.githubusercontent.com/impermeable/waterproof-exercise-sheets/main/ch4_real_numbers.mv">Waterproof Exercise Sheets - Chapter 4: Real Numbers</option>
+					<option value="https://raw.githubusercontent.com/impermeable/waterproof-exercise-sheets/main/ch5_sequences_sum_rule.mv">Waterproof Exercise Sheets - Chapter 5: Sequences Sum Rule</option>
+					<option value="https://raw.githubusercontent.com/impermeable/waterproof-exercise-sheets/main/ch5_sequences.mv">Waterproof Exercise Sheets - Chapter 5: Sequences</option>
+					<option value="https://raw.githubusercontent.com/impermeable/waterproof-exercise-sheets/main/ch6_bounded_sequences.mv">Waterproof Exercise Sheets - Chapter 6: Bounded Sequences</option>
+					<option value="https://raw.githubusercontent.com/impermeable/waterproof-exercise-sheets/main/ch6_divergence_to_infinity.mv">Waterproof Exercise Sheets - Chapter 6: Divergence To Infinity</option>
+					<option value="https://raw.githubusercontent.com/impermeable/waterproof-exercise-sheets/main/ch6_real_valued_sequences.mv">Waterproof Exercise Sheets - Chapter 6: Real Valued Sequences</option>
+					<option value="https://raw.githubusercontent.com/impermeable/waterproof-exercise-sheets/main/ch10_subsequences_recursive_index_sequence.mv">Waterproof Exercise Sheets - Chapter 10: Subsequences Recursive Index Sequence</option>
+					<option value="https://raw.githubusercontent.com/impermeable/waterproof-exercise-sheets/main/ch10_subsequences.mv">Waterproof Exercise Sheets - Chapter 10: Subsequences</option>
+					<option value="https://raw.githubusercontent.com/impermeable/waterproof-exercise-sheets/main/ch11_point_set_topology.mv">Waterproof Exercise Sheets - Chapter 11: Point Set Topology</option>
+					<option value="https://raw.githubusercontent.com/impermeable/waterproof-exercise-sheets/main/ch13_limits_and_continuity_a.mv">Waterproof Exercise Sheets - Chapter 13: Limits And Continuity A</option>
+					<option value="https://raw.githubusercontent.com/impermeable/waterproof-exercise-sheets/main/ch13_limits_and_continuity_b.mv">Waterproof Exercise Sheets - Chapter 13: Limits And Continuity B</option>
+					<option disabled>──────────</option>
+					<option value="https://raw.githubusercontent.com/impermeable/introduction-to-proof-sheets/main/lecture1/sheet1_conjunction.mv">Introduction To Proof Sheets - Lecture 1 - Sheet 1: Conjunction</option>
+					<option value="https://raw.githubusercontent.com/impermeable/introduction-to-proof-sheets/main/lecture1/sheet2_disjunction.mv">Introduction To Proof Sheets - Lecture 1 - Sheet 2: Disjunction</option>
+					<option value="https://raw.githubusercontent.com/impermeable/introduction-to-proof-sheets/main/lecture1/sheet3_even_square.mv">Introduction To Proof Sheets - Lecture 1 - Sheet 3: Even Square</option>
+					<option value="https://raw.githubusercontent.com/impermeable/introduction-to-proof-sheets/main/lecture2/sheet1_implication.mv">Introduction To Proof Sheets - Lecture 2 - Sheet 1: Implication</option>
+					<option value="https://raw.githubusercontent.com/impermeable/introduction-to-proof-sheets/main/lecture2/sheet2_biconditional.mv">Introduction To Proof Sheets - Lecture 2 - Sheet 2: Biconditional</option>
+					<option value="https://raw.githubusercontent.com/impermeable/introduction-to-proof-sheets/main/lecture2/sheet3_negation.mv">Introduction To Proof Sheets - Lecture 2 - Sheet 3: Negation</option>
+					<option value="https://raw.githubusercontent.com/impermeable/introduction-to-proof-sheets/main/lecture2/sheet4_excluded_middle.mv">Introduction To Proof Sheets - Lecture 2 - Sheet 4: Excluded Middle</option>
+					<option value="https://raw.githubusercontent.com/impermeable/introduction-to-proof-sheets/main/lecture2/sheet5_forall.mv">Introduction To Proof Sheets - Lecture 2 - Sheet 5: Forall</option>
+					<option value="https://raw.githubusercontent.com/impermeable/introduction-to-proof-sheets/main/lecture2/sheet6_exists.mv">Introduction To Proof Sheets - Lecture 2 - Sheet 6: Exists</option>
+					<option value="https://raw.githubusercontent.com/impermeable/introduction-to-proof-sheets/main/lecture2/sheet7_unique_exists.mv">Introduction To Proof Sheets - Lecture 2 - Sheet 7: Unique Exists</option>
+					<option value="https://raw.githubusercontent.com/impermeable/introduction-to-proof-sheets/main/lecture2/sheet8_quantifier_alternation.mv">Introduction To Proof Sheets - Lecture 2 - Sheet 8: Quantifier Alternation</option>
+					<option value="https://raw.githubusercontent.com/impermeable/introduction-to-proof-sheets/main/lecture3/sheet1_subset.mv">Introduction To Proof Sheets - Lecture 3 - Sheet 1: Subset</option>
+					<option value="https://raw.githubusercontent.com/impermeable/introduction-to-proof-sheets/main/lecture3/sheet2_double_containment.mv">Introduction To Proof Sheets - Lecture 3 - Sheet 2: Double Containment</option>
+					<option value="https://raw.githubusercontent.com/impermeable/introduction-to-proof-sheets/main/lecture3/sheet3_emptyset.mv">Introduction To Proof Sheets - Lecture 3 - Sheet 3: Emptyset</option>
+					<option value="https://raw.githubusercontent.com/impermeable/introduction-to-proof-sheets/main/lecture3/sheet4_powerset.mv">Introduction To Proof Sheets - Lecture 3 - Sheet 4: Powerset</option>
+					<option value="https://raw.githubusercontent.com/impermeable/introduction-to-proof-sheets/main/lecture4/sheet1_intersection.mv">Introduction To Proof Sheets - Lecture 4 - Sheet 1: Intersection</option>
+					<option value="https://raw.githubusercontent.com/impermeable/introduction-to-proof-sheets/main/lecture4/sheet2_union.mv">Introduction To Proof Sheets - Lecture 4 - Sheet 2: Union</option>
+					<option value="https://raw.githubusercontent.com/impermeable/introduction-to-proof-sheets/main/lecture4/sheet3_indexed_operations.mv">Introduction To Proof Sheets - Lecture 4 - Sheet 3: Indexed Operations</option>
+					<option value="https://raw.githubusercontent.com/impermeable/introduction-to-proof-sheets/main/lecture4/sheet4_demorgan.mv">Introduction To Proof Sheets - Lecture 4 - Sheet 4: Demorgan</option>
+					<option value="https://raw.githubusercontent.com/impermeable/introduction-to-proof-sheets/main/lecture5/sheet1_image.mv">Introduction To Proof Sheets - Lecture 5 - Sheet 1: Image</option>
+					<option value="https://raw.githubusercontent.com/impermeable/introduction-to-proof-sheets/main/lecture5/sheet2_preimage.mv">Introduction To Proof Sheets - Lecture 5 - Sheet 2: Preimage</option>
+					<option value="https://raw.githubusercontent.com/impermeable/introduction-to-proof-sheets/main/lecture6/sheet1_injectivity.mv">Introduction To Proof Sheets - Lecture 6 - Sheet 1: Injectivity</option>
+					<option value="https://raw.githubusercontent.com/impermeable/introduction-to-proof-sheets/main/lecture6/sheet2_surjectivity.mv">Introduction To Proof Sheets - Lecture 6 - Sheet 2: Surjectivity</option>
+					<option value="https://raw.githubusercontent.com/impermeable/introduction-to-proof-sheets/main/lecture6/sheet3_inverse.mv">Introduction To Proof Sheets - Lecture 6 - Sheet 3: Inverse</option>
+					<option value="https://raw.githubusercontent.com/impermeable/introduction-to-proof-sheets/main/lecture9/sheet1_antisymmetric.mv">Introduction To Proof Sheets - Lecture 9 - Sheet 1: Antisymmetric</option>
+					<option value="https://raw.githubusercontent.com/impermeable/introduction-to-proof-sheets/main/lecture9/sheet2_transitive.mv">Introduction To Proof Sheets - Lecture 9 - Sheet 2: Transitive</option>
+					<option value="https://raw.githubusercontent.com/impermeable/introduction-to-proof-sheets/main/lecture11/sheet1_convergence.mv">Introduction To Proof Sheets - Lecture 11 - Sheet 1: Convergence</option>
+				</select>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

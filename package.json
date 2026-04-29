@@ -1,0 +1,36 @@
+{
+  "name": "waterproof-browser",
+  "version": "1.0.0",
+  "description": "",
+  "license": "MIT",
+  "author": "impermeable",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "node esbuild.mjs",
+    "watch:typecheck": "tsc --noEmit --watch",
+    "watch:build": "node esbuild.mjs --watch",
+    "serve": "node esbuild.mjs --serve"
+  },
+  "dependencies": {
+    "@codemirror/autocomplete": "^6.20.0",
+    "@codemirror/commands": "^6.10.2",
+    "@codemirror/language": "^6.12.2",
+    "@codemirror/lint": "^6.9.4",
+    "@codemirror/state": "^6.5.4",
+    "@codemirror/view": "^6.39.15",
+    "@impermeable/codemirror-lang-waterproof": "github:impermeable/codemirror-lang-waterproof",
+    "@impermeable/waterproof-editor": "file:./impermeable-waterproof-editor-0.13.0.tgz",
+    "@ocaml-wasm/4.12--janestreet-base": "^0.16.0-0",
+    "@ocaml-wasm/4.12--num": "^1.4.0-0",
+    "@ocaml-wasm/4.12--zarith": "^1.13.0-0",
+    "ocaml-wasm": "^4.12.0-0",
+    "vscode-jsonrpc": "^8.2.1"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "esbuild": "^0.27.1",
+    "typescript": "^5.9.3"
+  }
+}
