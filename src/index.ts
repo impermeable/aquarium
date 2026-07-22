@@ -15,6 +15,7 @@ import "@impermeable/waterproof-editor/styles.css";
 import "@impermeable/waterproof-editor/waterproof-defaults.css";
 import { highlight_dark, highlight_light, waterproof } from "@impermeable/codemirror-lang-waterproof";
 import { handleDiagnostics, handleFileProgress, handleLogTrace } from "./handlers";
+import { CrashDetector } from "./crashDetector";
 
 // Entry point of the web application, calls the main function.
 window.onload = async () => {
@@ -70,6 +71,53 @@ let goalsPanel: GoalsPanel;
 let currentEditor: WaterproofEditor;
 let currentTextDocument: TextDocument;
 
+// Detects a crashed/wedged checker worker (e.g. a WASM trap in zarith/GMP that
+// leaves the server Busy forever) and offers a restart via the goals panel.
+let restartingChecker = false;
+const crashDetector = new CrashDetector(
+    (message) => {
+        // Ignore signals from the worker we are currently tearing down, and
+        // anything that fires before the goals panel exists (during startup).
+        if (restartingChecker || !goalsPanel) return;
+        goalsPanel.showCrashNotice(message, restartChecker);
+    },
+    () => goalsPanel?.hideCrashNotice()
+);
+
+/**
+ * Create an LSP client (starting a fresh worker) and register all notification
+ * handlers on it. Used both at startup and when restarting a crashed checker.
+ */
+function createLspClient(): LspClient {
+    const client = new LspClient(serverConfig, (message) => crashDetector.onWorkerError(message));
+    registerNotificationHandlers(client);
+    return client;
+}
+
+/**
+ * Replace the crashed/wedged worker with a fresh one, re-open the current
+ * document on it (edits are kept, since `currentTextDocument` is the source of
+ * truth) and trigger a recheck of the visible region.
+ */
+async function restartChecker(): Promise<void> {
+    if (restartingChecker) return;
+    restartingChecker = true;
+    try {
+        crashDetector.reset();
+        lspClient.dispose();
+        lspClient = createLspClient();
+        await lspClient.initializeServer();
+        await lspClient.openDocument(currentTextDocument);
+        // Recheck the visible region, like on a fresh load. If the crashing
+        // sentence is still in view this may re-trigger the crash notice,
+        // pointing the user at the sentence that needs editing.
+        currentEditor.handleScroll(window.innerHeight);
+    } finally {
+        restartingChecker = false;
+        goalsPanel.hideCrashNotice();
+    }
+}
+
 /**
  * One-time application setup: starts the language server worker, creates the
  * goals panel and registers all notification handlers and DOM listeners.
@@ -90,8 +138,9 @@ async function initApp(text?: string) {
     `;
 
     // Create the LSP client object, this will also start the language server
-    // in a web worker. This is the only worker for the whole session.
-    lspClient = new LspClient(serverConfig);
+    // in a web worker. The worker lives for the whole session unless it
+    // crashes, in which case `restartChecker` replaces it.
+    lspClient = createLspClient();
     // Initialize the server
     await lspClient.initializeServer();
 
@@ -185,22 +234,32 @@ async function initApp(text?: string) {
         });
     }
 
-    // Notification handlers are registered once, on the app-lifetime connection.
-    // They dereference `currentEditor`/`currentTextDocument` at call time so they
-    // always target the active document, and ignore notifications addressed to
-    // a previously closed document by comparing URIs.
-    lspClient.onNotification("$/logTrace", handleLogTrace());
-    lspClient.onNotification("textDocument/publishDiagnostics", (params) => {
+    // Load the initial document into the editor
+    loadDocument(documentText);
+}
+
+/**
+ * Register all notification handlers on a client's connection. Called for every
+ * client we create (initial one and post-crash replacements). The handlers
+ * dereference `currentEditor`/`currentTextDocument` at call time so they always
+ * target the active document, and ignore notifications addressed to a
+ * previously closed document by comparing URIs.
+ */
+function registerNotificationHandlers(client: LspClient) {
+    client.onNotification("$/logTrace", handleLogTrace());
+    client.onNotification("textDocument/publishDiagnostics", (params) => {
         if (params.uri !== currentTextDocument.uri) return;
         handleDiagnostics(currentEditor, currentTextDocument)(params);
     });
-    lspClient.onNotification("$/coq/fileProgress", (params) => {
+    client.onNotification("$/coq/fileProgress", (params) => {
         if (params.textDocument?.uri !== currentTextDocument.uri) return;
+        crashDetector.onFileProgress(params.processing?.[0]?.range?.start?.line);
         handleFileProgress(currentEditor, currentTextDocument)(params);
     });
-    lspClient.onNotification("$/coq/serverStatus", async params => {
+    client.onNotification("$/coq/serverStatus", async params => {
         // On Idle, we recompute input area statuses
         const {status} = params;
+        crashDetector.onServerStatus(status);
         if (status === "Idle") {
             await computeInputAreaStatus(lspClient, currentTextDocument, currentEditor);
         }
@@ -213,17 +272,14 @@ async function initApp(text?: string) {
     });
 
     // Handle window/logMessage notifications
-    lspClient.onNotification("window/logMessage", (params) => {
+    client.onNotification("window/logMessage", (params) => {
         console.log("LSP Log:", params.message);
     });
 
     // Handle performance data notifications
-    lspClient.onNotification("$/coq/filePerfData", (params: any) => {
+    client.onNotification("$/coq/filePerfData", (params: any) => {
         console.log("Performance data:", params);
     });
-
-    // Load the initial document into the editor
-    loadDocument(documentText);
 }
 
 /**

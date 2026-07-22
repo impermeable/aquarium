@@ -48,24 +48,39 @@ export const serverConfig: RocqLspServerConfig = {
  * Implements a minimal LspClient that interfaces with the language server running as a WebWorker instance.
  */
 export class LspClient {
-    
-    public connection: rpc.MessageConnection;
 
-    constructor(private readonly initializationOptions?: RocqLspServerConfig) {
+    public connection: rpc.MessageConnection;
+    private worker: Worker;
+
+    constructor(
+        private readonly initializationOptions?: RocqLspServerConfig,
+        onWorkerError?: (message: string) => void
+    ) {
         this.initializationOptions = initializationOptions;
 
         // Create the web worker (path is relative to the compiled file)
-        const worker = new Worker('wacoq_worker.js');  // "wacoq_worker.js" -- for deployment
-        // const worker = new Worker('/wacoq_worker.js'); // "/wacoq_worker.js" -- local
+        this.worker = new Worker('wacoq_worker.js');  // "wacoq_worker.js" -- for deployment
+        // this.worker = new Worker('/wacoq_worker.js'); // "/wacoq_worker.js" -- local
+
+        // Surface uncaught worker errors (e.g. WASM traps) to the caller so a
+        // crashed checker can be detected and restarted.
+        if (onWorkerError) {
+            this.worker.onerror = (event) => {
+                onWorkerError(event.message ?? String(event));
+            };
+            this.worker.onmessageerror = () => {
+                onWorkerError("worker message could not be deserialized");
+            };
+        }
 
         // The worker expects the first message to be a base path string
         // Send that before any JSON-RPC messages so the worker can initialize correctly.
-        worker.postMessage('/aquarium'); // "/aquarium" -- for deployment
-        // worker.postMessage('');                    // "" -- local
+        this.worker.postMessage('/aquarium'); // "/aquarium" -- for deployment
+        // this.worker.postMessage('');                    // "" -- local
 
         // Create message reader and writer for the worker
-        const reader = new rpc.BrowserMessageReader(worker);
-        const writer = new rpc.BrowserMessageWriter(worker);
+        const reader = new rpc.BrowserMessageReader(this.worker);
+        const writer = new rpc.BrowserMessageWriter(this.worker);
 
         // Create the JSON-RPC connection
         this.connection = rpc.createMessageConnection(reader, writer);
@@ -73,6 +88,16 @@ export class LspClient {
         // Listen for incoming messages
         this.connection.listen();
 
+    }
+
+    /**
+     * Tear down this client: closes the JSON-RPC connection (rejecting any
+     * pending requests) and terminates the worker. Used when restarting a
+     * crashed or wedged language server.
+     */
+    dispose(): void {
+        this.connection.dispose();
+        this.worker.terminate();
     }
 
     /**
