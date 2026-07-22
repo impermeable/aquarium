@@ -1,6 +1,7 @@
 import * as rpc from 'vscode-jsonrpc/browser';
 import { Position } from './positionsRanges';
 import { TextDocument } from './TextDocument';
+import { diag } from './diagnostics';
 
 // Server configuration object
 // See https://github.com/ejgallego/rocq-lsp/blob/main/etc/doc/PROTOCOL.md#did-change-configuration-and-server-configuration-parameters
@@ -51,17 +52,18 @@ export class LspClient {
     
     public connection: rpc.MessageConnection;
 
-    constructor(private readonly documentText: string, private readonly documentUri: string = 'file:///tutorial.md', private readonly initializationOptions?: RocqLspServerConfig) {
+    constructor(private readonly initializationOptions?: RocqLspServerConfig) {
         this.initializationOptions = initializationOptions;
 
         // Create the web worker (path is relative to the compiled file)
-        const worker = new Worker('wacoq_worker.js');  // "wacoq_worker.js" -- for deployment
-        // const worker = new Worker('/wacoq_worker.js'); // "/wacoq_worker.js" -- local
+        // const worker = new Worker('wacoq_worker.js');  // "wacoq_worker.js" -- for deployment
+        const worker = new Worker('/wacoq_worker.js'); // "/wacoq_worker.js" -- local
+        diag.recordWorkerCreated(); // H2: track worker creation (never terminated anywhere)
 
         // The worker expects the first message to be a base path string
         // Send that before any JSON-RPC messages so the worker can initialize correctly.
-        worker.postMessage('/aquarium'); // "/aquarium" -- for deployment
-        // worker.postMessage('');                    // "" -- local
+        // worker.postMessage('/aquarium'); // "/aquarium" -- for deployment
+        worker.postMessage('');                    // "" -- local
 
         // Create message reader and writer for the worker
         const reader = new rpc.BrowserMessageReader(worker);
@@ -91,9 +93,6 @@ export class LspClient {
      * @returns 
      */
     public async initializeServer(): Promise<void> {
-        // Compute workspace URI from document URI
-        const workspaceUri = this.documentUri.replace(/\/[^\/]*$/, '/');
-
         // Send initialize request to the language server
         const initializeParams = {
             processId: null,
@@ -101,7 +100,7 @@ export class LspClient {
             initializationOptions: this.initializationOptions,
             workspaceFolders: [
                 {
-                    uri: workspaceUri,
+                    uri: 'file:///',
                     name: 'workspace'
                 }
             ]
@@ -110,25 +109,38 @@ export class LspClient {
         try {
             const result = await this.connection.sendRequest('initialize', initializeParams);
             console.log('Language server initialized:', result);
-            
+
             // Set trace level to verbose
             // await this.connection.sendNotification('$/setTrace', { value: 'verbose' });
-            
-            // Send didOpen for the document
-            const didOpenParams = {
-                textDocument: {
-                    uri: this.documentUri,
-                    languageId: 'markdown', // or 'coq' if applicable
-                    version: 1,
-                    text: this.documentText
-                }
-            };
-            await this.connection.sendNotification('textDocument/didOpen', didOpenParams);
             return;
         } catch (error) {
             console.error('Failed to initialize language server:', error);
             return;
         }
+    }
+
+    /**
+     * Open a document on the server via `textDocument/didOpen`.
+     * The server keeps running; documents can be opened and closed freely.
+     */
+    async openDocument(document: TextDocument): Promise<void> {
+        const didOpenParams = {
+            textDocument: {
+                uri: document.uri,
+                languageId: 'markdown', // or 'coq' if applicable
+                version: document.version,
+                text: document.text
+            }
+        };
+        await this.connection.sendNotification('textDocument/didOpen', didOpenParams);
+    }
+
+    /**
+     * Close a document on the server via `textDocument/didClose`, releasing
+     * the server-side state associated with it.
+     */
+    async closeDocument(uri: string): Promise<void> {
+        await this.connection.sendNotification('textDocument/didClose', { textDocument: { uri } });
     }
 
     /**
@@ -138,7 +150,7 @@ export class LspClient {
      * @returns 
      */
     async sendRequest(method: string, params: any): Promise<any> {
-        return this.connection.sendRequest(method, params);
+        return diag.trackRequest(method, this.connection.sendRequest(method, params));
     }
 
     /**
@@ -171,6 +183,6 @@ export class LspClient {
 
         // console.log('Requesting goals with params:', params);
         // Send the request to the language server
-        return this.connection.sendRequest('proof/goals', params);
+        return diag.trackRequest('proof/goals', this.connection.sendRequest('proof/goals', params));
     }
 }
