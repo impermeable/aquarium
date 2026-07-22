@@ -14,7 +14,7 @@
  */
 
 /** How long the frontier may sit still (while Busy) before we suspect a wedge. */
-const STUCK_THRESHOLD_MS = 30_000;
+const STUCK_THRESHOLD_MS = 60_000;
 
 export class CrashDetector {
     private busy = false;
