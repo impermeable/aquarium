@@ -28,12 +28,29 @@
  *
  *  H6  Console/notification log flood (debug:true + per-notification logging).
  *      -> `notifsΔ` shows how many notifications/logs are produced per interval.
+ *
+ *  H7  A single slow/stuck sentence in the document (e.g. the exercise 11
+ *      "We conclude that & ..." chain) keeps the checker Busy for a long time.
+ *      -> `[diag check]` lines show how long the checking frontier dwelt on
+ *         each line; `[diag stuck]` warns every few seconds with the exact
+ *         line (and its text) the checker is currently sitting on; `[diag perf]`
+ *         prints the slowest sentences reported by the server after a check
+ *         completes (requires `send_perf_data: true` in the server config).
  * ---------------------------------------------------------------------------
  */
 
 export const DIAGNOSTICS_ENABLED = true;
 
 const SNAPSHOT_INTERVAL_MS = 30_000;
+
+// H7: log a line's dwell time once the checking frontier moves past it, if it
+// took longer than this.
+const SLOW_LINE_THRESHOLD_MS = 1_000;
+// H7: while the server is Busy, warn at this interval with the line the
+// checking frontier is currently stuck on.
+const STUCK_WATCHDOG_INTERVAL_MS = 5_000;
+// H3/H7: warn about any single LSP request that took longer than this.
+const SLOW_REQUEST_THRESHOLD_MS = 2_000;
 
 function percentile(sorted: number[], p: number): number {
     if (sorted.length === 0) return 0;
@@ -63,6 +80,13 @@ class Diagnostics {
     // H6: notification / log volume
     private notifsSinceSnapshot: Record<string, number> = {};
 
+    // H7: where is the checking frontier, and how long has it been there?
+    private busySince: number | null = null;
+    private frontierLine: number | null = null;
+    private frontierSince = 0;
+    private frontierText = "";
+    private stuckWatchdog: number | undefined;
+
     /** Call once per initApp() invocation (should stay at 1). Also (idempotently) starts the snapshot timer. */
     recordMainCall(): void {
         if (!DIAGNOSTICS_ENABLED) return;
@@ -82,6 +106,23 @@ class Diagnostics {
         this.workersCreated++;
     }
 
+    /**
+     * H7: call from the worker's onerror/onmessageerror handlers. An uncaught
+     * error (e.g. a WASM trap in zarith/GMP) kills the checking fiber while the
+     * server keeps reporting Busy — this ties the resulting "stuck" state to
+     * its actual cause, including the line the frontier was on at crash time.
+     */
+    recordWorkerError(message: string): void {
+        if (!DIAGNOSTICS_ENABLED) return;
+        const where = this.frontierLine !== null
+            ? ` while checking line ${this.frontierLine + 1}: "${this.frontierText.trim()}"`
+            : "";
+        console.error(
+            `[diag worker] uncaught worker error${where} — checking will not recover, ` +
+            `the server will appear Busy/stuck from here on (H7): ${message}`
+        );
+    }
+
     /** Call from documentChange with the new full document length. */
     recordDidChange(docLength: number): void {
         if (!DIAGNOSTICS_ENABLED) return;
@@ -96,7 +137,7 @@ class Diagnostics {
     }
 
     /** Wrap any request-returning promise to time it and track in-flight depth. */
-    trackRequest<T>(_label: string, p: Promise<T>): Promise<T> {
+    trackRequest<T>(label: string, p: Promise<T>): Promise<T> {
         if (!DIAGNOSTICS_ENABLED) return p;
         const t0 = performance.now();
         this.inFlight++;
@@ -105,10 +146,75 @@ class Diagnostics {
         if (this.inFlight > this.peakInFlight) this.peakInFlight = this.inFlight;
         const done = () => {
             this.inFlight--;
-            this.latenciesSinceSnapshot.push(performance.now() - t0);
+            const dur = performance.now() - t0;
+            this.latenciesSinceSnapshot.push(dur);
+            if (dur > SLOW_REQUEST_THRESHOLD_MS) {
+                console.warn(`[diag slow] ${label} request took ${(dur / 1000).toFixed(1)}s (H3/H7)`);
+            }
         };
         p.then(done, done);
         return p;
+    }
+
+    /**
+     * H7: call from the `$/coq/serverStatus` handler. Tracks Busy periods and
+     * runs a watchdog that reports the line the checker is stuck on.
+     */
+    recordServerStatus(status: string): void {
+        if (!DIAGNOSTICS_ENABLED) return;
+        if (status === "Busy") {
+            if (this.busySince !== null) return; // already busy
+            this.busySince = performance.now();
+            this.stuckWatchdog = window.setInterval(() => {
+                const busyFor = ((performance.now() - this.busySince!) / 1000).toFixed(1);
+                if (this.frontierLine === null) {
+                    console.warn(`[diag stuck] server Busy for ${busyFor}s, no fileProgress received yet (H7)`);
+                } else {
+                    const stuckFor = ((performance.now() - this.frontierSince) / 1000).toFixed(1);
+                    console.warn(
+                        `[diag stuck] server Busy for ${busyFor}s; checking frontier has been at ` +
+                        `line ${this.frontierLine + 1} for ${stuckFor}s: "${this.frontierText.trim()}" (H7)`
+                    );
+                }
+            }, STUCK_WATCHDOG_INTERVAL_MS);
+        } else {
+            if (this.busySince === null) return; // already idle
+            this.flushFrontier();
+            const total = ((performance.now() - this.busySince) / 1000).toFixed(1);
+            console.log(`[diag check] server ${status} after ${total}s Busy`);
+            this.busySince = null;
+            window.clearInterval(this.stuckWatchdog);
+            this.stuckWatchdog = undefined;
+        }
+    }
+
+    /**
+     * H7: call from the `$/coq/fileProgress` handler with the first line of the
+     * still-unprocessed region (0-based) and that line's text. Logs how long the
+     * frontier dwelt on the previous line whenever it moves.
+     */
+    recordCheckFrontier(line: number, lineText: string): void {
+        if (!DIAGNOSTICS_ENABLED) return;
+        if (line === this.frontierLine) return;
+        this.flushFrontier();
+        this.frontierLine = line;
+        this.frontierSince = performance.now();
+        this.frontierText = lineText;
+    }
+
+    /** Log the dwell time of the current frontier line (if slow) and clear it. */
+    private flushFrontier(): void {
+        if (this.frontierLine !== null) {
+            const dwell = performance.now() - this.frontierSince;
+            if (dwell > SLOW_LINE_THRESHOLD_MS) {
+                console.log(
+                    `[diag check] line ${this.frontierLine + 1} took ${(dwell / 1000).toFixed(1)}s: ` +
+                    `"${this.frontierText.trim()}" (H7)`
+                );
+            }
+        }
+        this.frontierLine = null;
+        this.frontierText = "";
     }
 
     private start(): void {

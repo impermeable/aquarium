@@ -14,7 +14,7 @@ import { executeCommandFullOutput } from "./lib/commandExecutor";
 import "@impermeable/waterproof-editor/styles.css";
 import "@impermeable/waterproof-editor/waterproof-defaults.css";
 import { highlight_dark, highlight_light, waterproof } from "@impermeable/codemirror-lang-waterproof";
-import { handleDiagnostics, handleFileProgress, handleLogTrace } from "./handlers";
+import { handleDiagnostics, handleFileProgress, handleLogTrace, handlePerfData } from "./handlers";
 import { diag } from "./diagnostics";
 
 // Entry point of the web application, calls the main function.
@@ -208,6 +208,7 @@ async function initApp(text?: string) {
     lspClient.onNotification("$/coq/serverStatus", counting("$/coq/serverStatus", async params => {
         // On Idle, we recompute input area statuses
         const {status} = params;
+        diag.recordServerStatus(status); // H7: Busy duration + stuck-line watchdog
         if (status === "Idle") {
             await computeInputAreaStatus(lspClient, currentTextDocument, currentEditor);
         }
@@ -224,9 +225,11 @@ async function initApp(text?: string) {
         console.log("LSP Log:", params.message);
     }));
 
-    // Handle performance data notifications
+    // Handle performance data notifications.
+    // H7: print the slowest sentences of the last check with their source text.
     lspClient.onNotification("$/coq/filePerfData", counting("$/coq/filePerfData", (params: any) => {
-        console.log("Performance data:", params);
+        if (params.textDocument?.uri !== currentTextDocument.uri) return;
+        handlePerfData(currentTextDocument)(params);
     }));
 
     // Load the initial document into the editor

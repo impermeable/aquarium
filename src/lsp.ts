@@ -42,7 +42,9 @@ export const serverConfig: RocqLspServerConfig = {
     // "trace.server": "verbose",
     send_diags_extra_data: true,
     check_only_on_request: !continuousChecking,
-    send_perf_data: false,
+    // H7 instrumentation: per-sentence timings via $/coq/filePerfData,
+    // rendered by handlePerfData as "[diag perf]" console lines.
+    send_perf_data: true,
 };
 
 /**
@@ -56,14 +58,24 @@ export class LspClient {
         this.initializationOptions = initializationOptions;
 
         // Create the web worker (path is relative to the compiled file)
-        // const worker = new Worker('wacoq_worker.js');  // "wacoq_worker.js" -- for deployment
-        const worker = new Worker('/wacoq_worker.js'); // "/wacoq_worker.js" -- local
+        const worker = new Worker('wacoq_worker.js');  // "wacoq_worker.js" -- for deployment
+        // const worker = new Worker('/wacoq_worker.js'); // "/wacoq_worker.js" -- local
         diag.recordWorkerCreated(); // H2: track worker creation (never terminated anywhere)
+
+        // H7: surface uncaught worker errors (e.g. WASM "index out of bounds"
+        // traps in zarith/GMP). After such a trap the checking fiber dies but
+        // the server keeps reporting Busy, so without this the app just hangs.
+        worker.onerror = (event) => {
+            diag.recordWorkerError(event.message ?? String(event));
+        };
+        worker.onmessageerror = () => {
+            diag.recordWorkerError("messageerror: worker message could not be deserialized");
+        };
 
         // The worker expects the first message to be a base path string
         // Send that before any JSON-RPC messages so the worker can initialize correctly.
-        // worker.postMessage('/aquarium'); // "/aquarium" -- for deployment
-        worker.postMessage('');                    // "" -- local
+        worker.postMessage('/aquarium'); // "/aquarium" -- for deployment
+        // worker.postMessage('');                    // "" -- local
 
         // Create message reader and writer for the worker
         const reader = new rpc.BrowserMessageReader(worker);
