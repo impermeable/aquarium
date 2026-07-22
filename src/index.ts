@@ -14,8 +14,7 @@ import { executeCommandFullOutput } from "./lib/commandExecutor";
 import "@impermeable/waterproof-editor/styles.css";
 import "@impermeable/waterproof-editor/waterproof-defaults.css";
 import { highlight_dark, highlight_light, waterproof } from "@impermeable/codemirror-lang-waterproof";
-import { handleDiagnostics, handleFileProgress, handleLogTrace, handlePerfData } from "./handlers";
-import { diag } from "./diagnostics";
+import { handleDiagnostics, handleFileProgress, handleLogTrace } from "./handlers";
 
 // Entry point of the web application, calls the main function.
 window.onload = async () => {
@@ -77,8 +76,6 @@ let currentTextDocument: TextDocument;
  * Runs exactly once; switching files goes through `loadDocument` instead.
  */
 async function initApp(text?: string) {
-    diag.recordMainCall();
-
     const editorElem = document.getElementById("editor");
     if (!editorElem) return;
 
@@ -188,27 +185,22 @@ async function initApp(text?: string) {
         });
     }
 
-    // H6: count notification volume per method (wrap each handler with a tally).
-    const counting = (method: string, handler: (params: any) => void) =>
-        (params: any) => { diag.recordNotification(method); handler(params); };
-
     // Notification handlers are registered once, on the app-lifetime connection.
     // They dereference `currentEditor`/`currentTextDocument` at call time so they
     // always target the active document, and ignore notifications addressed to
     // a previously closed document by comparing URIs.
-    lspClient.onNotification("$/logTrace", counting("$/logTrace", handleLogTrace()));
-    lspClient.onNotification("textDocument/publishDiagnostics", counting("textDocument/publishDiagnostics", (params) => {
+    lspClient.onNotification("$/logTrace", handleLogTrace());
+    lspClient.onNotification("textDocument/publishDiagnostics", (params) => {
         if (params.uri !== currentTextDocument.uri) return;
         handleDiagnostics(currentEditor, currentTextDocument)(params);
-    }));
-    lspClient.onNotification("$/coq/fileProgress", counting("$/coq/fileProgress", (params) => {
+    });
+    lspClient.onNotification("$/coq/fileProgress", (params) => {
         if (params.textDocument?.uri !== currentTextDocument.uri) return;
         handleFileProgress(currentEditor, currentTextDocument)(params);
-    }));
-    lspClient.onNotification("$/coq/serverStatus", counting("$/coq/serverStatus", async params => {
+    });
+    lspClient.onNotification("$/coq/serverStatus", async params => {
         // On Idle, we recompute input area statuses
         const {status} = params;
-        diag.recordServerStatus(status); // H7: Busy duration + stuck-line watchdog
         if (status === "Idle") {
             await computeInputAreaStatus(lspClient, currentTextDocument, currentEditor);
         }
@@ -218,19 +210,17 @@ async function initApp(text?: string) {
         } else {
             currentEditor.stopSpinner();
         }
-    }));
+    });
 
     // Handle window/logMessage notifications
-    lspClient.onNotification("window/logMessage", counting("window/logMessage", (params) => {
+    lspClient.onNotification("window/logMessage", (params) => {
         console.log("LSP Log:", params.message);
-    }));
+    });
 
-    // Handle performance data notifications.
-    // H7: print the slowest sentences of the last check with their source text.
-    lspClient.onNotification("$/coq/filePerfData", counting("$/coq/filePerfData", (params: any) => {
-        if (params.textDocument?.uri !== currentTextDocument.uri) return;
-        handlePerfData(currentTextDocument)(params);
-    }));
+    // Handle performance data notifications
+    lspClient.onNotification("$/coq/filePerfData", (params: any) => {
+        console.log("Performance data:", params);
+    });
 
     // Load the initial document into the editor
     loadDocument(documentText);
@@ -280,7 +270,6 @@ function loadDocument(documentText: string) {
             documentChange: function (change: DocChange | WrappingDocChange): void {
                 textDocument.applyChange(change);
                 const documentText = textDocument.text;
-                diag.recordDidChange(documentText.length); // H4: edit rate + document growth
 
                 const didChangeParams = {
                     textDocument: textDocument.versionedIdentifier,
