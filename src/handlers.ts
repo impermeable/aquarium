@@ -21,6 +21,7 @@ export function handleFileProgress(editor: WaterproofEditor, textDocument: TextD
         // console.log("File progress:", params);
         const numberOfLines = textDocument.lineCount;
         const progress = params.processing.map(convertToSimple);
+        if (progress.length === 0) return;
         const at = progress[0].range.start.line + 1;
         if (at === numberOfLines) {
             editor.reportProgress(at, numberOfLines, "File verified");
