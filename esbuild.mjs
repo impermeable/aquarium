@@ -10,6 +10,11 @@ const debugBuild = process.argv.includes("--debug");
 const serveFlag = process.argv.includes("--serve");
 const localFlag = process.argv.includes("--local");
 
+const portIndex = process.argv.indexOf("--port");
+const userPort = portIndex !== -1
+  ? Number.parseInt(process.argv[portIndex + 1], 10)
+  : undefined;
+
 // Setting to `copy` means we bundle the fonts in dist. Setting this to `dataurl` includes the fonts as base64 encoded data in the generated css file.
 const fontLoader = "base64";
 const sharedConfig = {
@@ -65,6 +70,7 @@ if (watch) {
   const ctx = await esbuild.context(sharedConfig);
   const {port} = await ctx.serve({
     servedir: "out",
+    ...(userPort === undefined ? {} : {port: userPort})
   });
   console.log(`Listening on http://localhost:${port}`);
   ctx.watch();

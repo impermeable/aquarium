@@ -38,7 +38,7 @@ Additionally, all vendored files from the `vendor` subdirectory must be copied t
 
 Local changes can quickly be tried out in the browser using the `npm run serve` command.
 
-After running this command, opening [http://localhost:8000](http://localhost:8000) (the port should be displayed in the output of the run command) will show the browser version of Waterproof.
+After running this command, opening [http://localhost:8000](http://localhost:8000) (the port should be displayed in the output of the run command) will show the browser version of Waterproof. The port can be changed by using the `--port` argument. Example: the server will listen on port `8080` when using `npm run serve -- --port 8080` or `node esbuild.mjs --local --port 8080 --serve`.
 
 ## Credit
 
