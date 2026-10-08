@@ -7,7 +7,8 @@ const minify = process.argv.includes("--minify");
 const disableSourcemap = process.argv.includes("--sourcemap=no");
 const genSourcemap = disableSourcemap ? null : { sourcemap: "inline" };
 const debugBuild = process.argv.includes("--debug");
-const serveFlag = process.argv.includes("--serve"); 
+const serveFlag = process.argv.includes("--serve");
+const localFlag = process.argv.includes("--local");
 
 // Setting to `copy` means we bundle the fonts in dist. Setting this to `dataurl` includes the fonts as base64 encoded data in the generated css file.
 const fontLoader = "base64";
@@ -24,6 +25,10 @@ const sharedConfig = {
     ".ttf": fontLoader,
     ".grammar": "file",
     ".md": "text"
+  },
+  define: {
+    "__WACOQ_PATH__": JSON.stringify(localFlag ? "/wacoq_worker.js" : "wacoq_worker.js"),
+    "__RPC_PATH__": JSON.stringify(localFlag ? "" : "/aquarium"),
   },
   dropLabels: debugBuild ? [] : ["DEBUG"],
   minify,

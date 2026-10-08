@@ -11,7 +11,7 @@
     "build": "node esbuild.mjs",
     "watch:typecheck": "tsc --noEmit --watch",
     "watch:build": "node esbuild.mjs --watch",
-    "serve": "node esbuild.mjs --serve"
+    "serve": "node esbuild.mjs --serve --local"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.0",
