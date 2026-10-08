@@ -59,8 +59,7 @@ export class LspClient {
         this.initializationOptions = initializationOptions;
 
         // Create the web worker (path is relative to the compiled file)
-        this.worker = new Worker('wacoq_worker.js');  // "wacoq_worker.js" -- for deployment
-        // this.worker = new Worker('/wacoq_worker.js'); // "/wacoq_worker.js" -- local
+        this.worker = new Worker(__WACOQ_PATH__); // Configured by esbuild
 
         // Surface uncaught worker errors (e.g. WASM traps) to the caller so a
         // crashed checker can be detected and restarted.
@@ -75,8 +74,7 @@ export class LspClient {
 
         // The worker expects the first message to be a base path string
         // Send that before any JSON-RPC messages so the worker can initialize correctly.
-        this.worker.postMessage('/aquarium'); // "/aquarium" -- for deployment
-        // this.worker.postMessage('');                    // "" -- local
+        this.worker.postMessage(__RPC_PATH__); // Configured by esbuild
 
         // Create message reader and writer for the worker
         const reader = new rpc.BrowserMessageReader(this.worker);
