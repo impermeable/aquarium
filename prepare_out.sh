@@ -1,4 +1,4 @@
-mkdir out/out
+mkdir out/out -p
 cp vendor/* out/out
 mv out/out/wacoq_worker.js out/
 mkdir out/node_modules/@ocaml-wasm/4.12--janestreet-base/bin -p

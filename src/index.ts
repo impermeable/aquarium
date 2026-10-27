@@ -202,7 +202,7 @@ async function initApp(text?: string) {
                 event.preventDefault();
                 // toggle teacher mode variable
                 teacherMode = !teacherMode;
-                currentEditor.updateLockingState(teacherMode);
+                currentEditor.setTeacherMode(teacherMode);
                 if (teacherMode) {
                     document.getElementById("title")!.innerText = "Goals - Teacher Mode Enabled";
                 } else {
@@ -313,6 +313,14 @@ function loadDocument(documentText: string) {
     const config: WaterproofEditorConfig = {
         completions: tactics,
         symbols,
+        templates: {
+            example: "",
+            exercise: {
+                statement: "",
+                closing: ""
+            },
+            containerOpenTag: ""
+        },
         api: {
             executeCommand: function (): void {
                 // we don't support commands other than "Help." so this is a no-op.
@@ -356,6 +364,10 @@ function loadDocument(documentText: string) {
             highlightDark: highlight_dark,
             highlightLight: highlight_light,
             languageSupport: waterproof()
+        },
+        emptyCodePlaceholders: {
+            inInput: "(* Type your proof here *)",
+            general: "Empty code cell"
         }
     }
     editorElem.innerHTML = ""; // Clear loading messages
@@ -373,7 +385,7 @@ function loadDocument(documentText: string) {
 
     // Preserve teacher mode across document loads
     if (teacherMode) {
-        editor.updateLockingState(teacherMode);
+        editor.setTeacherMode(teacherMode);
     }
 }
 
